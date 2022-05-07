@@ -71,7 +71,12 @@ fn main() -> io::Result<()> {
             if entry.path().eq(&cwd) {
                 return filter.len() == 0 || filter == ".";
             }
-            return entry.file_name().to_str().unwrap().starts_with(filter);
+            return entry
+                .file_name()
+                .to_str()
+                .unwrap()
+                .to_lowercase()
+                .starts_with(&filter.to_lowercase());
         });
 
         for entry in entries {
