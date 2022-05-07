@@ -140,19 +140,42 @@ fn main() -> io::Result<()> {
                     )));
                 }
             } else {
+                let entry_to_remove = entry.clone();
                 let result = fs::remove_dir(entry.path());
                 match result {
                     Err(error) => match error.kind() {
                         ErrorKind::DirectoryNotEmpty => {
-                            siv.add_layer(Dialog::info(format!(
-                                "Failed to remove directory {}: Directory not empty.",
-                                entry.path().display(),
-                            )));
+                            siv.add_layer(
+                                Dialog::info(format!(
+                                    "Failed to remove directory {}: Directory not empty.",
+                                    entry_to_remove.path().display(),
+                                ))
+                                .button(
+                                    "Delete Anyway",
+                                    move |siv| {
+                                        fs::remove_dir_all(entry_to_remove.path()).unwrap();
+                                        siv.pop_layer();
+
+                                        let mut select_view = siv
+                                            .find_name::<SelectView<DirEntry>>("select")
+                                            .unwrap();
+                                        match select_view.selected_id() {
+                                            None => {
+                                                siv.add_layer(Dialog::info("No name to remove"))
+                                            }
+                                            Some(focused_id) => {
+                                                populate_select_view(&mut select_view, "");
+                                                select_view.set_selection(focused_id);
+                                            }
+                                        }
+                                    },
+                                ),
+                            );
                         }
                         _ => {
                             siv.add_layer(Dialog::info(format!(
                                 "Failed to remove directory {}: {}",
-                                entry.path().display(),
+                                entry_to_remove.path().display(),
                                 error,
                             )));
                         }
@@ -187,20 +210,22 @@ fn main() -> io::Result<()> {
     let layout = LinearLayout::vertical()
         .child(select_view)
         .child(edit_view)
-        .child(TextView::new("Tab = toggle search bar focus\t\tEnter = delete\t\tCtrl + C = exit"))
+        .child(TextView::new(
+            "Tab = toggle search bar focus\t\tEnter = delete\t\tCtrl + C = exit",
+        ))
         .with_name("layout");
 
     let mut siv = cursive::default();
     siv.set_on_pre_event(Event::Key(Key::Tab), |siv| {
         let mut layout_view = siv.find_name::<LinearLayout>("layout").unwrap();
         let current_focus = layout_view.get_focus_index();
-        layout_view.set_focus_index(
-            match current_focus {
+        layout_view
+            .set_focus_index(match current_focus {
                 0 => 1,
                 1 => 0,
                 _ => 1,
-            }
-        ).unwrap();
+            })
+            .unwrap();
     });
     siv.add_fullscreen_layer(layout);
     siv.run();
